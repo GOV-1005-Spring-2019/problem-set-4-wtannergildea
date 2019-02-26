@@ -4,40 +4,126 @@ author: "Tanner Gildea"
 date: "2/26/2019"
 output: html_document
 ---
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r madlibs, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
 
+library(dplyr)
+library(janitor)
+library(gt)
+library(tidyverse)
+library(readxl)
+library(lubridate)
+
+polling_data <- read_csv("ps_4_elections-poll-nc09-3.csv")
+
+# answer to 1
+dem_candidate_supporter <- polling_data %>%
+ filter(response == "Dem") %>%
+nrow()
+
+# answer to 2
+favor_rep <- polling_data %>%
+filter(hrep_fav == "Favorable") %>%
+nrow()
+
+favor_undecided <- polling_data %>%
+ filter(hrep_fav == "Don't know") %>%
+ nrow()
+
+rep_over_undecided <- (favor_rep - favor_undecided)
+
+# answer to 3
+different_gender <- polling_data %>%
+ select(gender, gender_combined) %>%
+ filter(gender != gender_combined) %>%
+ nrow()
+
+# answer to 4
+different_race <- polling_data %>% 
+ select(race_eth, file_race_black) %>%
+ filter(race_eth == "White", file_race_black != "White") %>%
+ nrow()
+
+# answer to 5
+dem_time <- polling_data %>%
+  filter(response == "Dem") %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  pull(timestamp)
+
+rep_time <- polling_data %>%
+  filter(response == "Rep") %>%
+  arrange(timestamp) %>%
+  slice(1) %>%
+  pull(timestamp)
+
+time_difference <- (minute(rep_time) - minute(dem_time))
+```
+
+
+# Question 1
+
+There were `r dem_candidate_supporter` respondents who supported the Democratic candidate.
+
+There were `r rep_over_undecided` more respondents who favored the Republican candidate than who were Undecided.
+
+There are two gender variables (gender and gender_combined). There are `r different_gender` individuals for whom these variables have different values.
+
+There are `r different_race`  respondents listed as “White” under race_eth who are not listed as “White” under file_race_black.
+
+The first response of Rep came `r time_difference` minutes (rounded to the nearest minute) before the first response of Dem.
+
+# Question 2
+
+``` {r make_chart, echo = FALSE, results = "asis"}
+
+table <- polling_data %>%
+  select(response, race_eth, final_weight) %>%
+  group_by(race_eth, response) %>%
+
+  # All you need to know for this class is: Use sum(weight_var) in place of n().
+
+  summarize(total = sum(final_weight)) %>%
+  filter(race_eth != "[DO NOT READ] Don't know/Refused") %>%
+  spread(key =  response, value = total, fill = 0) %>%
+  mutate(all = Dem + Rep + Und + `3`) %>%
+  mutate(Dem = Dem / all) %>%
+  mutate(Rep = Rep / all) %>%
+  mutate(Und = Und / all) %>%
+  select(-all, - `3`) %>%
+  arrange(factor(race_eth, levels = c("White", "Black", "Hispanic", "Asian", "Other"))) %>% 
+
+  # One of the biggest pieces of black magic incantation in R is ungroup(). (I
+  # did not mention this in class.) Summary: Whenever you group a tibble (as we
+  # do above) the grouping stays with an resulting object, until you explicitly
+  # ungroup() it. That can't ever hurt things (right? TFs?) and it often helps,
+  # as in this case.
+
+  ungroup() %>%
+
+  # You will have a chance to explore many other gt commands in problem set #4.
+  # I added two extras that we did not get to in class.
+
+gt() %>%
+  tab_header(
+    title = "Polling Results in North Carolina 9th Congressional District") %>%
+
+  cols_label(
+    race_eth = "Race",
+    Dem = "DEM.",
+    Rep = "REP.",
+    Und = "UND."
+  ) %>%
+
+  fmt_percent(columns = vars(Dem, Rep, Und),
+              decimals = 0) %>% 
+
+# This little pipe is that incantation to take this pretty table, turn it
+    # into html, and send it to the md file we are creating. Future versions of
+    # gt will probably have a better way of doing this. Indeed, does anyone know
+    # of one?
+
+    as_raw_html() %>% as.character() %>% cat()
 
 ```
 
-*Question 1*
-
-There were X respondents who supported the Democratic candidate.
-
-There were X more respondents who favored the Republican candidate than who were Undecided.
-
-There are two gender variables (gender and gender_combined). There are X individuals for whom these variables have different values.
-
-There are X respondents listed as “White” under race_eth who are not listed as “White” under file_race_black.
-
-The first response of Rep came X minutes (rounded to the nearest minute) before the first response of Dem.
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
