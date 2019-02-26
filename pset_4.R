@@ -3,8 +3,9 @@ library(janitor)
 library(gt)
 library(tidyverse)
 library(readxl)
+library(lubridate)
 
-polling_Data <- read_csv("ps_4_elections-poll-nc09-3.csv")
+polling_data <- read_csv("ps_4_elections-poll-nc09-3.csv")
 
 # View(polling_data)
 
@@ -13,6 +14,7 @@ polling_Data <- read_csv("ps_4_elections-poll-nc09-3.csv")
 # dem_candidate_supporter <- polling_data %>%  
 #  filter(response == "Dem") %>% 
 # nrow()
+#answer = 219
 
 # 2. There were X more respondents who favored the Republican candidate than who were Undecided.
 #favor_rep <- polling_data %>% 
@@ -53,3 +55,63 @@ polling_Data <- read_csv("ps_4_elections-poll-nc09-3.csv")
 # first Dem was at 2018-10-26 22:06:37
 # first Rep was at 2018-10-26 22:17:39
 
+# dem_time <- polling_data %>% 
+#   filter(response == "Dem") %>% 
+#   arrange(timestamp) %>% 
+#   slice(1) %>% 
+#   pull(timestamp)
+# 
+# 
+# rep_time <- polling_data %>% 
+#   filter(response == "Rep") %>% 
+#   arrange(timestamp) %>% 
+#   slice(1) %>% 
+#   pull(timestamp)
+# 
+# time_difference <-  (minute(rep_time) - minute(dem_time))
+# 
+# answer = 11
+
+# Question 2 box 
+
+table <- polling_data %>%
+  select(response, race_eth, final_weight) %>%
+  group_by(race_eth, response) %>%
+
+  # All you need to know for this class is: Use sum(weight_var) in place of n().
+
+  summarize(total = sum(final_weight)) %>%
+  filter(race_eth != "[DO NOT READ] Don't know/Refused") %>%
+  spread(key =  response, value = total, fill = 0) %>%
+  mutate(all = Dem + Rep + Und + `3`) %>%
+  mutate(Dem = Dem / all) %>%
+  mutate(Rep = Rep / all) %>%
+  mutate(Und = Und / all) %>%
+  select(-all, - `3`) %>%
+
+  # One of the biggest pieces of black magic incantation in R is ungroup(). (I
+  # did not mention this in class.) Summary: Whenever you group a tibble (as we
+  # do above) the grouping stays with an resulting object, until you explicitly
+  # ungroup() it. That can't ever hurt things (right? TFs?) and it often helps,
+  # as in this case.
+
+  ungroup() %>%
+
+  # You will have a chance to explore many other gt commands in problem set #4.
+  # I added two extras that we did not get to in class.
+
+gt() %>%
+  tab_header(
+    title = "Polling Results in NC 9th") %>%
+
+  cols_label(
+    race_eth = NULL,
+    Dem = "DEM.",
+    Rep = "REP.",
+    Und = "UND."
+  ) %>%
+
+  fmt_percent(columns = vars(Dem, Rep, Und),
+              decimals = 0)
+
+View(table)
